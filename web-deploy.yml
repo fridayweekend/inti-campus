@@ -1,0 +1,43 @@
+name: Deploy Flutter Web to Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.35.6'
+          cache: true
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Build web with the correct Pages path
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: |
+          BASE_HREF="${BASE_PATH%/}/"
+          flutter build web --release --base-href "$BASE_HREF"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
